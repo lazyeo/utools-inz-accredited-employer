@@ -58,8 +58,25 @@
       "mainPush": true,
       "cmds": [
         {
+          "type": "regex",
+          "label": "查询认证雇主",
+          "match": "/^\\d{13}$/",
+          "minLength": 13,
+          "maxLength": 13
+        },
+        {
+          "type": "regex",
+          "label": "查询认证雇主",
+          "match": "/^[A-Za-z0-9&'().,\/-][A-Za-z0-9&'().,\/-\\s]{2,120}$/",
+          "minLength": 3,
+          "maxLength": 120
+        },
+        {
           "type": "over",
-          "label": "查询认证雇主"
+          "label": "查询认证雇主",
+          "minLength": 3,
+          "maxLength": 120,
+          "exclude": "/\\n/"
         }
       ]
     }
