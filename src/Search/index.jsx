@@ -25,6 +25,11 @@ function getStatusMessage (status, message) {
   return null
 }
 
+function formatDate (value) {
+  if (!value) return '未知'
+  return value.includes('T') ? value.split('T')[0] : value
+}
+
 export default function Search ({ enterAction }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
@@ -34,12 +39,14 @@ export default function Search ({ enterAction }) {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(0)
   const [totalResults, setTotalResults] = useState(0)
+  const [selectedIndex, setSelectedIndex] = useState(0)
 
   const performSearch = useCallback(async (q, pageNum = 1, isLoadMore = false) => {
     if (!q || q.trim().length < 3) {
       setResults([])
       setTotalResults(0)
       setTotalPages(0)
+      setSelectedIndex(0)
       return
     }
 
@@ -48,6 +55,7 @@ export default function Search ({ enterAction }) {
     } else {
       setLoading(true)
       setPage(1)
+      setSelectedIndex(0)
     }
     setError(null)
 
@@ -110,6 +118,33 @@ export default function Search ({ enterAction }) {
     return () => clearTimeout(timer)
   }, [query, performSearch])
 
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (!results.length) return
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        setSelectedIndex(prev => Math.min(prev + 1, results.length - 1))
+      }
+
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        setSelectedIndex(prev => Math.max(prev - 1, 0))
+      }
+
+      if (event.key === 'Enter') {
+        const item = results[selectedIndex]
+        if (item && item.nzbn) {
+          window.utools.copyText(item.nzbn)
+          window.utools.showNotification(`已复制 NZBN: ${item.nzbn}`)
+        }
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [results, selectedIndex])
+
   const loadMore = () => {
     if (page < totalPages && !loadingMore) {
       const nextPage = page + 1
@@ -118,8 +153,30 @@ export default function Search ({ enterAction }) {
     }
   }
 
+  const copyNzbn = (event, nzbn) => {
+    event.stopPropagation()
+    if (!nzbn) return
+    window.utools.copyText(nzbn)
+    window.utools.showNotification(`已复制 NZBN: ${nzbn}`)
+  }
+
+  const fillQuery = (value) => {
+    setQuery(value)
+    window.utools.setSubInputValue(value)
+  }
+
   return (
     <div className='search-container'>
+      <div className='search-header'>
+        <div>
+          <div className='search-title'>认证雇主查询</div>
+          <div className='search-subtitle'>支持 Employer Name、Trading Name、NZBN</div>
+        </div>
+        {query.trim().length > 0 && (
+          <div className='search-chip'>{query.trim()}</div>
+        )}
+      </div>
+
       {loading && <div className='status'>正在从新西兰移民局官网查询...</div>}
       {error && <div className='status error'>{error}</div>}
       {!loading && !error && results.length === 0 && query.trim().length >= 3 && (
@@ -129,18 +186,29 @@ export default function Search ({ enterAction }) {
         <div className='status'>请输入至少 3 个字符进行搜索</div>
       )}
       {!loading && !error && query.trim().length === 0 && (
-        <div className='status'>可以直接输入关键词；如果想更顺手，可以在 uTools 里给“查询认证雇主”配置全局快捷键</div>
+        <div className='empty-state'>
+          <div className='empty-title'>开始查询</div>
+          <div className='empty-text'>在上方输入公司名、别名或完整 13 位 NZBN</div>
+          <div className='quick-actions'>
+            <button onClick={() => fillQuery('SEEKA LIMITED')}>试试 SEEKA LIMITED</button>
+            <button onClick={() => fillQuery('9429039617347')}>试试 NZBN</button>
+          </div>
+        </div>
       )}
 
       {totalResults > 0 && !loading && (
-        <div className='results-info'>找到 {totalResults} 个结果</div>
+        <div className='results-info'>
+          <span>找到 {totalResults} 个结果</span>
+          <span>↑↓ 选择 · Enter 复制 NZBN</span>
+        </div>
       )}
 
       <div className='results-list'>
         {results.map((item, index) => (
           <div
             key={`${item.nzbn}-${index}`}
-            className='result-item'
+            className={`result-item ${selectedIndex === index ? 'is-selected' : ''}`}
+            onMouseEnter={() => setSelectedIndex(index)}
             onClick={() => {
               if (item.nzbn) {
                 window.utools.copyText(item.nzbn)
@@ -148,13 +216,24 @@ export default function Search ({ enterAction }) {
               }
             }}
           >
-            <div className='employer-name'>{item.employerName}</div>
+            <div className='result-top'>
+              <div className='employer-name'>{item.employerName}</div>
+              <button className='copy-btn' onClick={(event) => copyNzbn(event, item.nzbn)}>复制 NZBN</button>
+            </div>
+
             {item.tradingName && item.tradingName !== item.employerName && (
-              <div className='trading-name'>别名: {item.tradingName}</div>
+              <div className='trading-name'>Trading Name: {item.tradingName}</div>
             )}
-            <div className='meta'>
-              <span className='nzbn'>NZBN: {item.nzbn}</span>
-              <span className='expiry'>认证有效期至: {item.expiryDateOfAccreditation ? item.expiryDateOfAccreditation.split('T')[0] : '未知'}</span>
+
+            <div className='meta-grid'>
+              <div className='meta-card'>
+                <div className='meta-label'>NZBN</div>
+                <div className='meta-value'>{item.nzbn || '未知'}</div>
+              </div>
+              <div className='meta-card'>
+                <div className='meta-label'>Expiry</div>
+                <div className='meta-value'>{formatDate(item.expiryDateOfAccreditation)}</div>
+              </div>
             </div>
           </div>
         ))}
