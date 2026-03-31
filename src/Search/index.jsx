@@ -17,6 +17,13 @@ function getInitialQuery (enterAction) {
   return ''
 }
 
+function normalizeErrorMessage (message) {
+  if (!message) return '查询失败，请稍后再试'
+  if (message.startsWith('HTTP_')) return '查询服务暂时不可用，请稍后再试'
+  if (message.includes('fetch')) return '查询服务暂时不可用，请稍后再试'
+  return message
+}
+
 export default function Search ({ enterAction }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
@@ -44,49 +51,18 @@ export default function Search ({ enterAction }) {
     setError(null)
 
     try {
-      const formData = new URLSearchParams()
-      formData.append('query', q.trim())
-      formData.append('collection', '2')
-      formData.append('page', pageNum.toString())
-
-      const response = await fetch('https://www.immigration.govt.nz/list-api/getAPIResults/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: formData
-      })
-
-      if (!response.ok) throw new Error('网络请求失败')
-      const data = await response.json()
+      const data = await window.services.searchInzEmployers(q, pageNum)
 
       setTotalPages(data.totalPages || 0)
       setTotalResults(data.totalResults || 0)
 
-      let items = []
-      try {
-        items = JSON.parse(data.results || '[]')
-      } catch {
-        items = []
-      }
-
-      const newResults = items.map(item => {
-        const fields = {}
-        if (item.field_schema && item.field_schema.raw) {
-          item.field_schema.raw.forEach(f => {
-            fields[f.APIColumn] = f.Value
-          })
-        }
-        return fields
-      })
-
       if (isLoadMore) {
-        setResults(prev => [...prev, ...newResults])
+        setResults(prev => [...prev, ...data.results])
       } else {
-        setResults(newResults)
+        setResults(data.results)
       }
     } catch (err) {
-      setError(err.message)
+      setError(normalizeErrorMessage(err.message))
     } finally {
       setLoading(false)
       setLoadingMore(false)
@@ -125,16 +101,8 @@ export default function Search ({ enterAction }) {
     }
   }
 
-  const setupHotkey = () => {
-    window.utools.redirectHotKeySetting('查询认证雇主', true)
-  }
-
   return (
     <div className='search-container'>
-      <div className='toolbar'>
-        <button className='toolbar-btn' onClick={setupHotkey}>设置快捷键</button>
-      </div>
-
       {loading && <div className='status'>正在从新西兰移民局官网查询...</div>}
       {error && <div className='status error'>查询出错: {error}</div>}
       {!loading && !error && results.length === 0 && query.trim().length >= 3 && (
@@ -144,7 +112,7 @@ export default function Search ({ enterAction }) {
         <div className='status'>请输入至少 3 个字符进行搜索</div>
       )}
       {!loading && !error && query.trim().length === 0 && (
-        <div className='status'>可以直接输入关键词，或复制文本后用“查询认证雇主”进入</div>
+        <div className='status'>可以直接输入关键词；如果想更顺手，可以在 uTools 里给“查询认证雇主”配置全局快捷键</div>
       )}
 
       {totalResults > 0 && !loading && (
