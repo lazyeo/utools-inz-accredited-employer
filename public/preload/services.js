@@ -7,23 +7,66 @@ async function searchInzEmployers (query, page = 1) {
   formData.append('collection', '2')
   formData.append('page', String(page))
 
-  const response = await fetch('https://www.immigration.govt.nz/list-api/getAPIResults/', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'Mozilla/5.0'
-    },
-    body: formData
-  })
-
-  if (!response.ok) {
-    throw new Error(`HTTP_${response.status}`)
+  let response
+  try {
+    response = await fetch('https://www.immigration.govt.nz/list-api/getAPIResults/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0'
+      },
+      body: formData
+    })
+  } catch (error) {
+    return {
+      status: 'network_error',
+      message: `Network error: ${error.message}`,
+      totalPages: 0,
+      totalResults: 0,
+      results: []
+    }
   }
 
-  const data = await response.json()
+  let data = {}
+  try {
+    data = await response.json()
+  } catch {
+    data = {}
+  }
 
-  if (data && data.Message && !data.results) {
-    throw new Error(data.Message)
+  const message = (data.Message || '').replace(/\s+/g, ' ').trim()
+  const title = (data.Title || '').trim()
+
+  if (!response.ok) {
+    const lower = message.toLowerCase()
+    if (lower.includes('too many results')) {
+      return {
+        status: 'too_many_results',
+        title,
+        message,
+        totalPages: 0,
+        totalResults: 0,
+        results: []
+      }
+    }
+    if (lower.includes('no results')) {
+      return {
+        status: 'no_results',
+        title,
+        message,
+        totalPages: 0,
+        totalResults: 0,
+        results: []
+      }
+    }
+    return {
+      status: 'http_error',
+      title,
+      message: message || `HTTP_${response.status}`,
+      totalPages: 0,
+      totalResults: 0,
+      results: []
+    }
   }
 
   let items = []
@@ -43,7 +86,34 @@ async function searchInzEmployers (query, page = 1) {
     return fields
   })
 
+  if (message && !results.length) {
+    const lower = message.toLowerCase()
+    if (lower.includes('no results')) {
+      return {
+        status: 'no_results',
+        title,
+        message,
+        totalPages: 0,
+        totalResults: 0,
+        results: []
+      }
+    }
+    if (lower.includes('too many results')) {
+      return {
+        status: 'too_many_results',
+        title,
+        message,
+        totalPages: 0,
+        totalResults: 0,
+        results: []
+      }
+    }
+  }
+
   return {
+    status: 'ok',
+    title,
+    message,
     totalPages: data.totalPages || 0,
     totalResults: data.totalResults || 0,
     results

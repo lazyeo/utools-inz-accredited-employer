@@ -17,11 +17,12 @@ function getInitialQuery (enterAction) {
   return ''
 }
 
-function normalizeErrorMessage (message) {
-  if (!message) return '查询失败，请稍后再试'
-  if (message.startsWith('HTTP_')) return '查询服务暂时不可用，请稍后再试'
-  if (message.includes('fetch')) return '查询服务暂时不可用，请稍后再试'
-  return message
+function getStatusMessage (status, message) {
+  if (status === 'no_results') return '未找到匹配的认证雇主'
+  if (status === 'too_many_results') return '结果过多，请输入更完整的公司名或完整 13 位 NZBN'
+  if (status === 'network_error') return '查询服务暂时不可用，请稍后再试'
+  if (status === 'http_error') return message || '查询服务暂时不可用，请稍后再试'
+  return null
 }
 
 export default function Search ({ enterAction }) {
@@ -52,9 +53,19 @@ export default function Search ({ enterAction }) {
 
     try {
       const data = await window.services.searchInzEmployers(q, pageNum)
+      const statusMessage = getStatusMessage(data.status, data.message)
+
+      if (data.status && data.status !== 'ok') {
+        setResults([])
+        setTotalPages(0)
+        setTotalResults(0)
+        setError(statusMessage)
+        return
+      }
 
       setTotalPages(data.totalPages || 0)
       setTotalResults(data.totalResults || 0)
+      setError(null)
 
       if (isLoadMore) {
         setResults(prev => [...prev, ...data.results])
@@ -62,7 +73,7 @@ export default function Search ({ enterAction }) {
         setResults(data.results)
       }
     } catch (err) {
-      setError(normalizeErrorMessage(err.message))
+      setError(err.message || '查询失败，请稍后再试')
     } finally {
       setLoading(false)
       setLoadingMore(false)
@@ -110,7 +121,7 @@ export default function Search ({ enterAction }) {
   return (
     <div className='search-container'>
       {loading && <div className='status'>正在从新西兰移民局官网查询...</div>}
-      {error && <div className='status error'>查询出错: {error}</div>}
+      {error && <div className='status error'>{error}</div>}
       {!loading && !error && results.length === 0 && query.trim().length >= 3 && (
         <div className='status'>未找到匹配的认证雇主</div>
       )}
