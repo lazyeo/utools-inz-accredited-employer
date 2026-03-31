@@ -73,6 +73,7 @@ export default function Search ({ enterAction }) {
     const initialQuery = getInitialQuery(enterAction)
     if (initialQuery) {
       setQuery(initialQuery)
+      window.utools.setSubInputValue(initialQuery)
     }
   }, [enterAction])
 
@@ -81,10 +82,15 @@ export default function Search ({ enterAction }) {
       setQuery(text)
     }, '输入公司名、Trading Name 或 13位NZBN (至少3个字符)...')
 
+    const initialQuery = getInitialQuery(enterAction)
+    if (initialQuery) {
+      window.utools.setSubInputValue(initialQuery)
+    }
+
     return () => {
       window.utools.removeSubInput()
     }
-  }, [])
+  }, [enterAction])
 
   useEffect(() => {
     const timer = setTimeout(() => {
