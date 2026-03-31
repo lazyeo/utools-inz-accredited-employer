@@ -13,7 +13,7 @@ export default function App () {
       setRoute(action.code)
       setEnterAction(action)
     })
-    window.utools.onPluginOut((isKill) => {
+    window.utools.onPluginOut(() => {
       setRoute('')
     })
   }, [])
@@ -30,7 +30,7 @@ export default function App () {
     return <Write enterAction={enterAction} />
   }
 
-  if (route === 'inz-search') {
+  if (route === 'inz-search' || route === 'inz-search-over') {
     return <Search enterAction={enterAction} />
   }
 

@@ -1,7 +1,23 @@
 import { useState, useEffect, useCallback } from 'react'
 import './index.css'
 
-export default function Search () {
+function getInitialQuery (enterAction) {
+  if (!enterAction) return ''
+
+  if (typeof enterAction.payload === 'string') return enterAction.payload
+  if (typeof enterAction.text === 'string') return enterAction.text
+  if (typeof enterAction.value === 'string') return enterAction.value
+
+  if (Array.isArray(enterAction.payload) && enterAction.payload.length > 0) {
+    const first = enterAction.payload[0]
+    if (typeof first === 'string') return first
+    if (first && typeof first.text === 'string') return first.text
+  }
+
+  return ''
+}
+
+export default function Search ({ enterAction }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
@@ -18,7 +34,7 @@ export default function Search () {
       setTotalPages(0)
       return
     }
-    
+
     if (isLoadMore) {
       setLoadingMore(true)
     } else {
@@ -26,7 +42,7 @@ export default function Search () {
       setPage(1)
     }
     setError(null)
-    
+
     try {
       const formData = new URLSearchParams()
       formData.append('query', q.trim())
@@ -43,14 +59,14 @@ export default function Search () {
 
       if (!response.ok) throw new Error('网络请求失败')
       const data = await response.json()
-      
+
       setTotalPages(data.totalPages || 0)
       setTotalResults(data.totalResults || 0)
 
       let items = []
       try {
         items = JSON.parse(data.results || '[]')
-      } catch (e) {
+      } catch {
         items = []
       }
 
@@ -78,7 +94,13 @@ export default function Search () {
   }, [])
 
   useEffect(() => {
-    // 监听子输入框的变化
+    const initialQuery = getInitialQuery(enterAction)
+    if (initialQuery) {
+      setQuery(initialQuery)
+    }
+  }, [enterAction])
+
+  useEffect(() => {
     window.utools.setSubInput(({ text }) => {
       setQuery(text)
     }, '输入公司名、Trading Name 或 13位NZBN (至少3个字符)...')
@@ -103,8 +125,16 @@ export default function Search () {
     }
   }
 
+  const setupHotkey = () => {
+    window.utools.redirectHotKeySetting('查询认证雇主', true)
+  }
+
   return (
     <div className='search-container'>
+      <div className='toolbar'>
+        <button className='toolbar-btn' onClick={setupHotkey}>设置快捷键</button>
+      </div>
+
       {loading && <div className='status'>正在从新西兰移民局官网查询...</div>}
       {error && <div className='status error'>查询出错: {error}</div>}
       {!loading && !error && results.length === 0 && query.trim().length >= 3 && (
@@ -114,24 +144,28 @@ export default function Search () {
         <div className='status'>请输入至少 3 个字符进行搜索</div>
       )}
       {!loading && !error && query.trim().length === 0 && (
-        <div className='status'>在上方搜索框输入关键词开始查询</div>
+        <div className='status'>可以直接输入关键词，或复制文本后用“查询认证雇主”进入</div>
       )}
-      
+
       {totalResults > 0 && !loading && (
         <div className='results-info'>找到 {totalResults} 个结果</div>
       )}
 
       <div className='results-list'>
         {results.map((item, index) => (
-          <div key={`${item.nzbn}-${index}`} className='result-item' onClick={() => {
-            if (item.nzbn) {
-              window.utools.copyText(item.nzbn)
-              window.utools.showNotification(`已复制 NZBN: ${item.nzbn}`)
-            }
-          }}>
+          <div
+            key={`${item.nzbn}-${index}`}
+            className='result-item'
+            onClick={() => {
+              if (item.nzbn) {
+                window.utools.copyText(item.nzbn)
+                window.utools.showNotification(`已复制 NZBN: ${item.nzbn}`)
+              }
+            }}
+          >
             <div className='employer-name'>{item.employerName}</div>
             {item.tradingName && item.tradingName !== item.employerName && (
-               <div className='trading-name'>别名: {item.tradingName}</div>
+              <div className='trading-name'>别名: {item.tradingName}</div>
             )}
             <div className='meta'>
               <span className='nzbn'>NZBN: {item.nzbn}</span>
@@ -139,7 +173,7 @@ export default function Search () {
             </div>
           </div>
         ))}
-        
+
         {page < totalPages && (
           <div className='load-more' onClick={loadMore}>
             {loadingMore ? '正在加载...' : '加载更多结果'}

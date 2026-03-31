@@ -6,6 +6,19 @@
   flex-direction: column;
 }
 
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 10px 0;
+}
+
+.toolbar-btn {
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 12px;
+  line-height: 30px;
+}
+
 .status {
   padding: 20px;
   text-align: center;

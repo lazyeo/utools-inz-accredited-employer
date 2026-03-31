@@ -47,8 +47,20 @@
       "explain": "新西兰移民局 (INZ) 认证雇主查询",
       "cmds": [
         "认证雇主",
+        "查认证雇主",
         "AEWV",
         "Accredited Employer"
+      ]
+    },
+    {
+      "code": "inz-search-over",
+      "explain": "查询复制/选中的公司名或 NZBN 是否为认证雇主",
+      "mainPush": true,
+      "cmds": [
+        {
+          "type": "over",
+          "label": "查询认证雇主"
+        }
       ]
     }
   ]
