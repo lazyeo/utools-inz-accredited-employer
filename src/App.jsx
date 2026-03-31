@@ -1,7 +1,4 @@
 import { useEffect, useState } from 'react'
-import Hello from './Hello'
-import Read from './Read'
-import Write from './Write'
 import Search from './Search'
 
 export default function App () {
@@ -17,18 +14,6 @@ export default function App () {
       setRoute('')
     })
   }, [])
-
-  if (route === 'hello') {
-    return <Hello enterAction={enterAction} />
-  }
-
-  if (route === 'read') {
-    return <Read enterAction={enterAction} />
-  }
-
-  if (route === 'write') {
-    return <Write enterAction={enterAction} />
-  }
 
   if (route === 'inz-search' || route === 'inz-search-over') {
     return <Search enterAction={enterAction} />
